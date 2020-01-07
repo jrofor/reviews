@@ -1,88 +1,48 @@
 package com.example.roman.reviews
 
 import android.os.Bundle
-import android.support.v4.widget.SwipeRefreshLayout
 import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
+import android.support.v7.widget.SearchView
 import android.util.Log
-import android.view.View
-import com.example.roman.reviews.data.remote.RestApi
-import com.example.roman.reviews.data.remote.models.dto.MovieReviewsResponse
-import com.example.roman.reviews.data.remote.models.dto.ReviewDTO
-import com.example.roman.reviews.ui.recycler.ReviewsRecyclerAdapter
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
+import android.view.Menu
+import com.example.roman.reviews.ui.fragments.RevListFragment
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
-    private val TAG = "myLogs"
-    private lateinit var recycler: RecyclerView
-    private lateinit var error: View
-    private lateinit var refreshLayout: SwipeRefreshLayout
-    private lateinit var reviewsAdapter: ReviewsRecyclerAdapter
-    private val service = RestApi.getInstance().movieReviews()
-    private val call = service.getMovieReviews()
-    private lateinit var movieReviewsResponse: List<ReviewDTO>
+    companion object {
+        var F_LIST_TAG = "list_fragment"
+        const val TAG = "myLogs"
+    }
+
+    private lateinit var revListFragment: RevListFragment
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        setupUi()
-        loadItems()
-    }
-
-    private fun setupUi() {
-        findViews()
-        setupRecyclerViewAdapter()
-    }
-
-    private fun findViews() {
-        recycler = findViewById(R.id.rv_reviews)
-        error = findViewById(R.id.ll_error)
-        refreshLayout = findViewById(R.id.swipe_refresh_layout)
-    }
-
-    private fun setupRecyclerViewAdapter() {
-        reviewsAdapter = ReviewsRecyclerAdapter(this)
-        recycler.adapter = reviewsAdapter
-        recycler.layoutManager = LinearLayoutManager(this)
-    }
-
-    override fun onStart() {
-        super.onStart()
-        refreshLayout.setOnRefreshListener {
-            loadItems()
+        Log.d(TAG, "--- mainActivity onCreate")
+        if (savedInstanceState == null) {
+            revListFragment = RevListFragment()
+            val transaction = supportFragmentManager.beginTransaction()
+            transaction.replace(R.id.frame_list, revListFragment, F_LIST_TAG)
+            transaction.addToBackStack(null)
+            transaction.commit()
         }
     }
 
-    private fun loadItems() {
-        call.clone().enqueue(object : Callback<MovieReviewsResponse> {
-            override fun onResponse(
-                call: Call<MovieReviewsResponse>,
-                response: Response<MovieReviewsResponse>
-            ) {
-                refreshLayout.isRefreshing = false
-                if (response.code() == 200) {
-                    Log.d(TAG, "------------")
-                    movieReviewsResponse = response.body()!!.results
-                    updateItems(movieReviewsResponse)
-                }
-            }
-
-            override fun onFailure(call: Call<MovieReviewsResponse>, t: Throwable) {
-                refreshLayout.isRefreshing = false
-                error.visibility = View.VISIBLE
-                recycler.visibility = View.GONE
-            }
-        })
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.toolbar_menu, menu)
+        val searchView = (menu.findItem(R.id.action_search).actionView as SearchView)
+        searchView.setOnQueryTextListener(this)
+        return true
     }
 
-    private fun updateItems(movieReviews: List<ReviewDTO>) {
-        error.visibility = View.GONE
-        recycler.visibility = View.VISIBLE
-        reviewsAdapter.replaceItems(movieReviews)
+    override fun onQueryTextSubmit(searchQuery: String?): Boolean {
+        searchQuery?.let { revListFragment.loadItems(it) }
+        return true
+    }
+
+    override fun onQueryTextChange(p0: String?): Boolean {
+        return false
     }
 
 }
